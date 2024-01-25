@@ -7,19 +7,11 @@
   </head>
   <body>
     <header>This is nav bar</header>
-    <h1>Welcome</h1>
-
-    <% if (locals.name) { %>
-
-    <h1><%= locals.name %></h1>
-
-    <% } %> 
-    
-    <% if (locals.surname) { %>
-
-    <h1><%= locals.surname %></h1>
-
-    <% } %>
+    <ul>
+      <li><%= locals.hobbies[0] %></li>
+      <li><%= locals.hobbies[1] %></li>
+      <li><%= locals.hobbies[2] %></li>
+    </ul>
 
     <footer>This is footer</footer>
   </body>
