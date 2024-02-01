@@ -4,9 +4,11 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import encrypt from 'mongoose-encryption';
+import bcrypt from 'bcrypt';
 
 const app = express();
 const port = 3000;
+const saltRounds = 10;
 
 console.log(process.env.SECRET_KEY);
 
@@ -20,10 +22,10 @@ const peopleSchema = new mongoose.Schema({
   age: String,
 });
 
-peopleSchema.plugin(encrypt, {
-  secret: process.env.SECRET_KEY,
-  encryptedFields: ['password'],
-});
+// peopleSchema.plugin(encrypt, {
+//   secret: process.env.SECRET_KEY,
+//   encryptedFields: ['password'],
+// });
 
 const User = mongoose.model('User', peopleSchema);
 
@@ -53,16 +55,28 @@ app.post('/signup', async (req, res) => {
       return res.status(400).send('Invalid input data');
     }
 
-    const user = new User({
-      email: email,
-      password: passwd,
-      age: parseInt(age),
-    });
+    const foundUser = await User.findOne({ email: email });
+    if (!foundUser) {
+      bcrypt.hash(passwd, saltRounds, function (err, hash) {
+        console.log('password hash : ' + hash);
 
-    await user.save(); // Use async/await to wait for the save operation to complete
+        const user = new User({
+          email: email,
+          password: hash,
+          age: parseInt(age),
+        });
 
-    res.render('landingPage.ejs', { username: email, message: ' Registered' });
-    console.log(req.body);
+        user.save(); // Use async/await to wait for the save operation to complete
+      });
+
+      res.render('landingPage.ejs', {
+        username: email,
+        message: ' Registered',
+      });
+      console.log(req.body);
+    } else {
+      res.send('This email already exists');
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
@@ -72,7 +86,8 @@ app.post('/signup', async (req, res) => {
 app.post('/login', async (req, res) => {
   try {
     const { email, passwd } = req.body;
-
+    console.log(email);
+    console.log(passwd);
     // Validation
     if (!email || !passwd) {
       return res.status(400).send('Invalid input data');
@@ -80,11 +95,22 @@ app.post('/login', async (req, res) => {
 
     const foundUser = await User.findOne({ email: email });
 
-    if (foundUser.password == passwd) {
-      res.render('landingPage.ejs', { username: email, message: ' logged in' });
-    }
+    if (foundUser) {
+      bcrypt.compare(passwd, foundUser.password, async (err, result) => {
+        console.log(foundUser.password);
+        console.log(result);
+        if (result === true) {
+          res.render('landingPage.ejs', {
+            username: email,
+            message: ' logged in',
+          });
+        } else {
+          res.status(400).send('Invalid credentials');
+        }
+      });
 
-    console.log(foundUser);
+      console.log(foundUser);
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
